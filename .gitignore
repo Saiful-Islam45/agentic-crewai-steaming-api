@@ -1,0 +1,7 @@
+venv
+.env
+
+my_website_builder/config.py
+
+# Python cache files
+__pycache__/

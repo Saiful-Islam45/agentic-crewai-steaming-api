@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CrewAI Streamed Output</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Include Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light gray-blue from palette */
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 1.5rem;
+            background-color: #ffffff;
+            border-radius: 0.75rem; /* rounded-lg */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06); /* shadow-md */
+        }
+        .btn-primary {
+            background-color: #0a9396; /* Blue from palette */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem; /* rounded-md */
+            font-weight: 600; /* font-semibold */
+            transition: background-color 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .btn-primary:hover {
+            background-color: #005f73; /* Darker blue from palette */
+        }
+        .output-box {
+            background-color: #e9d8a6; /* Sand from palette */
+            color: #005f73; /* Dark blue from palette */
+            border-radius: 0.5rem;
+            padding: 1rem;
+            min-height: 200px;
+            max-height: 500px;
+            overflow-y: auto;
+            /* Remove pre-wrap and word-wrap as content will be HTML */
+            font-family: sans-serif; /* Use default font for rendered markdown */
+            font-size: 0.875rem; /* text-sm */
+            border: 1px solid #ee9b00; /* Yellow from palette */
+        }
+        .loading-indicator {
+            display: none;
+            color: #ee9b00; /* Yellow from palette */
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+        /* Basic styling for markdown elements within the output-box */
+        .output-box h1, .output-box h2, .output-box h3, .output-box h4, .output-box h5, .output-box h6 {
+            font-weight: bold;
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+            color: #005f73;
+        }
+        .output-box h1 { font-size: 1.5em; }
+        .output-box h2 { font-size: 1.4em; }
+        .output-box h3 { font-size: 1.3em; }
+        .output-box strong {
+            color: #ca6702; /* Orange from palette for bold text */
+        }
+        .output-box code {
+            background-color: #f0f4f8; /* Light gray-blue */
+            padding: 0.2em 0.4em;
+            border-radius: 0.3em;
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #ae2012; /* Red from palette */
+        }
+        .output-box pre {
+            background-color: #f0f4f8;
+            padding: 1em;
+            border-radius: 0.5em;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.4;
+            color: #005f73;
+        }
+        .output-box hr {
+            border: none;
+            border-top: 2px solid #94d2bd; /* Green from palette */
+            margin: 1em 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-3xl font-bold text-center mb-6 text-[#005f73]">CrewAI Website Builder Client</h1>
+        <p class="text-center text-gray-600 mb-8">Enter location and niche to start the market research process. Output will stream below.</p>
+
+        <form id="apiForm" class="space-y-4 mb-8">
+            <div>
+                <label for="location" class="block text-sm font-medium text-gray-700 mb-1">Location:</label>
+                <input type="text" id="location" name="location" value="London" required
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#0a9396] focus:border-[#0a9396] sm:text-sm">
+            </div>
+            <div>
+                <label for="niche" class="block text-sm font-medium text-gray-700 mb-1">Niche:</label>
+                <input type="text" id="niche" name="niche" value="coffee shops" required
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#0a9396] focus:border-[#0a9396] sm:text-sm">
+            </div>
+            <button type="submit" class="btn-primary w-full">Start Market Research</button>
+        </form>
+
+        <div id="loadingIndicator" class="loading-indicator text-center">
+            Processing... Please wait for the AI agents to work their magic!
+        </div>
+
+        <h2 class="text-xl font-semibold mb-4 text-[#0a9396]">Streamed Output:</h2>
+        <!-- Changed from <pre> to <div> to allow HTML rendering -->
+        <div id="output" class="output-box"></div>
+    </div>
+
+    <script>
+        document.getElementById('apiForm').addEventListener('submit', async function(event) {
+            event.preventDefault(); // Prevent default form submission
+
+            const location = document.getElementById('location').value;
+            const niche = document.getElementById('niche').value;
+            const outputDiv = document.getElementById('output');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+
+            outputDiv.innerHTML = ''; // Clear previous output, use innerHTML now
+            loadingIndicator.style.display = 'block'; // Show loading indicator
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/market-research/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ location, niche }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    outputDiv.innerHTML = `<p style="color: red;">Error: ${errorData.error || response.statusText}</p>`;
+                    loadingIndicator.style.display = 'none';
+                    return;
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        console.log('Stream finished.');
+                        break;
+                    }
+
+                    buffer += decoder.decode(value, { stream: true });
+
+                    // Process complete SSE messages
+                    let lastNewlineIndex = buffer.lastIndexOf('\n\n');
+                    while (lastNewlineIndex !== -1) {
+                        const eventString = buffer.substring(0, lastNewlineIndex);
+                        buffer = buffer.substring(lastNewlineIndex + 2); // Keep remaining buffer
+
+                        eventString.split('\n').forEach(line => {
+                            if (line.startsWith('data:')) {
+                                try {
+                                    const jsonString = line.substring(5); // Remove "data:" prefix
+                                    const parsed = JSON.parse(jsonString);
+                                    if (parsed.message) {
+                                        // Parse Markdown and append as HTML
+                                        outputDiv.innerHTML += marked.parse(parsed.message);
+                                        outputDiv.scrollTop = outputDiv.scrollHeight; // Scroll to bottom
+                                    }
+                                } catch (e) {
+                                    console.error("Failed to parse JSON chunk or Markdown:", e, line);
+                                }
+                            }
+                        });
+                        lastNewlineIndex = buffer.lastIndexOf('\n\n');
+                    }
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                outputDiv.innerHTML = `<p style="color: red;">Network error: ${error.message}</p>`;
+            } finally {
+                loadingIndicator.style.display = 'none'; // Hide loading indicator
+            }
+        });
+    </script>
+</body>
+</html>

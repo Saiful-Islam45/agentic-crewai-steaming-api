@@ -1,0 +1,10 @@
+class Config:
+    """
+    Configuration class for the website builder project.
+    
+    This class contains settings and configurations for the project.
+    """
+
+    # Project name
+    PROJECT_NAME = "my_website_builder"
+    GOOGLE_API_KEY ="****************"
